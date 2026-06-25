@@ -103,4 +103,9 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 
 # Uvicorn: single worker per container; scale out by running more containers.
 # --forwarded-allow-ips='*' trusts X-Forwarded-* headers from the reverse proxy.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --forwarded-allow-ips='*' --log-level info"]
+CMD ["uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--forwarded-allow-ips", "*", \
+     "--log-level", "info"]
