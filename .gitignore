@@ -1,0 +1,175 @@
+# =============================================================================
+# Smart Attendance System — .gitignore
+# =============================================================================
+
+
+# ── Secrets / environment files ───────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+# Keep the example / template files:
+!.env.example
+!.env.production.example
+
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+lib/
+lib64/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# pyproject / setuptools
+*.pyo
+
+# mypy / pyright type stubs cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.coveragerc
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Alembic — keep migrations, ignore generated artefacts
+# alembic/versions/  <-- intentionally NOT ignored
+
+
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm
+.yarn/
+
+# Vite build output
+frontend/dist/
+frontend/.vite/
+
+# TypeScript incremental compilation
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
+
+
+# ── ML Models / Large Binaries ───────────────────────────────────────────────
+# Do NOT commit large model weights — store in object storage or Docker volume.
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.bin
+/models/
+checkpoints/
+weights/
+
+# FaceNet / facenet-pytorch cache (downloaded at runtime)
+.cache/torch/
+~/.cache/torch/
+
+
+# ── Application runtime data ──────────────────────────────────────────────────
+media/
+exports/
+logs/
+*.log
+desktop_version/registered_faces/
+desktop_version/embeddings/
+desktop_version/database/
+desktop_version/attendance/
+!desktop_version/embeddings/.gitkeep
+*.lnk
+
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+# Keep Dockerfiles; ignore local override files
+docker-compose.override.yml
+docker-compose.local.yml
+
+
+# ── IDEs / Editors ────────────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V8
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+*.orig
+.hypothesis/

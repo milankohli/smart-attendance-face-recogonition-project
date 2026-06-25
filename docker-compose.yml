@@ -1,0 +1,124 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Smart Attendance System — Docker Compose
+#
+# Services
+# ────────
+#   db        PostgreSQL 16 with pgvector extension (face embeddings)
+#   backend   FastAPI / Uvicorn (Python 3.11)
+#   frontend  Nginx serving the Vite/React production bundle
+#
+# Usage
+# ─────
+#   Development : docker compose up --build
+#   Production  : docker compose --env-file .env.production up -d --build
+#
+# Networking
+# ──────────
+#   All services share the `attendance_net` bridge network.
+#   Only the frontend (port 80 / 443) is exposed to the host; the backend
+#   and database are reachable only via the internal network.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL + pgvector ────────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16          # Official pgvector image on PG 16
+    container_name: attendance_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: place SQL init scripts in ./db/init/ to auto-run on first start
+      # - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - attendance_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # Postgres is intentionally NOT exposed to the host in production.
+    # Uncomment only for local debugging:
+    # ports:
+    #   - "5432:5432"
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: attendance_backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      # These override values in .env.production for container networking:
+      # Use the service name `db` as the Postgres host.
+      POSTGRES_SERVER: db
+      POSTGRES_PORT:   5432
+    volumes:
+      # Persist ML model cache between restarts (FaceNet weights, etc.)
+      - model_cache:/root/.cache
+      # Persist media uploads / exports
+      - media_data:/app/media
+    networks:
+      - attendance_net
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL",
+             "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    # Backend is NOT exposed to the host; nginx proxies /api/ and /ws/ to it.
+    # Uncomment to debug directly:
+    # ports:
+    #   - "8000:8000"
+
+  # ── React / Vite frontend (nginx) ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Injected at build time so the JS bundle targets the right API URL.
+        # In production behind a reverse proxy this is typically a relative
+        # path (/api/v1), handled by nginx's proxy_pass rule.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    container_name: attendance_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - attendance_net
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ── Named volumes ────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  model_cache:
+    driver: local
+  media_data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  attendance_net:
+    driver: bridge
