@@ -48,7 +48,8 @@ RUN pip install --no-cache-dir \
         pydantic>=2.7.0 \
         pydantic-settings>=2.3.0 \
         python-jose[cryptography]>=3.3.0 \
-        passlib[bcrypt]>=1.7.4 \
+        passlib[bcrypt]==1.7.4 \
+        bcrypt==4.1.3 \
         python-multipart>=0.0.9 \
         sqlalchemy>=2.0.0 \
         psycopg[binary]>=3.1.0 \
@@ -102,9 +103,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 
 # Uvicorn: single worker per container; scale out by running more containers.
 # --forwarded-allow-ips='*' trusts X-Forwarded-* headers from the reverse proxy.
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--forwarded-allow-ips", "*", \
-     "--log-level", "info"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --forwarded-allow-ips='*' --log-level info"]
