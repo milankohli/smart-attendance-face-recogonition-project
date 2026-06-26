@@ -11,8 +11,7 @@ services:
     runtime: python
     # Root directory of the backend within the monorepo
     rootDir: backend
-    # Python version — matches backend/runtime.txt
-    pythonVersion: "3.12"
+    
 
     # ── Build ──────────────────────────────────────────────────────────────
     # Install CPU-only PyTorch first (avoids the 2 GB CUDA wheel).
@@ -57,4 +56,4 @@ services:
         sync: false
       # Your deployed Vercel frontend URL — enables CORS for it
       - key: BACKEND_CORS_ORIGINS
-        value: https://smart-attendance-face-recogonition.vercel.app
+        value: https://smart-attendance-face-recognition.vercel.app
