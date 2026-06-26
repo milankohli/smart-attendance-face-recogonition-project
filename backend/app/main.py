@@ -190,7 +190,7 @@ def create_app() -> FastAPI:
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
-        *[str(o) for o in settings.BACKEND_CORS_ORIGINS],
+        *settings.cors_origins,   # parsed from BACKEND_CORS_ORIGINS env var
     ]
 
     app.add_middleware(
