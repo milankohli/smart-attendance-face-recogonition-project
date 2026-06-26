@@ -19,7 +19,7 @@ from datetime import time as time_
 from functools import lru_cache
 from typing import List
 
-from pydantic import AnyHttpUrl, PostgresDsn, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # ── CORS ────────────────────────────────────────────────────────────────
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    # List[str] is intentional — AnyHttpUrl causes pydantic-settings to reject
+    # plain comma-separated env var strings before the field_validator fires.
+    BACKEND_CORS_ORIGINS: List[str] = []
 
     # ── Logging ────────────────────────────────────────────────────────────
     LOG_LEVEL: str = "INFO"
