@@ -19,7 +19,7 @@ from datetime import time as time_
 from functools import lru_cache
 from typing import List
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,9 +49,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # ── CORS ────────────────────────────────────────────────────────────────
-    # List[str] is intentional — AnyHttpUrl causes pydantic-settings to reject
-    # plain comma-separated env var strings before the field_validator fires.
-    BACKEND_CORS_ORIGINS: List[str] = []
+    # Stored as a plain str so pydantic-settings never attempts list-coercion
+    # on the raw env value. Use the `cors_origins` property to get List[str].
+    # On Render set:  BACKEND_CORS_ORIGINS=https://your-app.vercel.app
+    # Multiple origins (comma-separated):
+    #   BACKEND_CORS_ORIGINS=https://app.vercel.app,http://localhost:3000
+    BACKEND_CORS_ORIGINS: str = ""
 
     # ── Logging ────────────────────────────────────────────────────────────
     LOG_LEVEL: str = "INFO"
@@ -74,18 +77,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Validators ─────────────────────────────────────────────────────────
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def _assemble_cors_origins(cls, v):
+    # ── CORS helper ────────────────────────────────────────────────────────
+    @property
+    def cors_origins(self) -> List[str]:
         """
-        Allow CORS origins to be provided as a comma-separated string
-        in the environment, e.g.:
-            BACKEND_CORS_ORIGINS=http://localhost:3000,https://app.example.com
+        Parse BACKEND_CORS_ORIGINS env var into a list of origin strings.
+        Accepts a single URL or comma-separated list:
+            https://app.vercel.app
+            https://app.vercel.app,http://localhost:3000
         """
-        if isinstance(v, str) and not v.startswith("["):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+        if not self.BACKEND_CORS_ORIGINS:
+            return []
+        return [o.strip() for o in self.BACKEND_CORS_ORIGINS.split(",") if o.strip()]
 
     @property
     def sqlalchemy_database_uri(self) -> str:
