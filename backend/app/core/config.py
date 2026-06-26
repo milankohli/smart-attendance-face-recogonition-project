@@ -37,8 +37,10 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "attendance_db"
 
-    # Optional: provide a full DSN directly (overrides the fields above)
-    DATABASE_URL: PostgresDsn | None = None
+    # Optional: provide a full DSN directly (overrides the fields above).
+    # Render provides DATABASE_URL as  postgresql://user:pass@host:port/db
+    # or  postgres://...  — both are normalised to postgresql+psycopg:// below.
+    DATABASE_URL: str | None = None
 
     # ── JWT / Security ─────────────────────────────────────────────────────
     JWT_SECRET_KEY: str = "CHANGE_THIS_SECRET_IN_PRODUCTION"
@@ -86,14 +88,30 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_database_uri(self) -> str:
         """
-        Build the SQLAlchemy connection string.
+        Build the async SQLAlchemy connection string.
 
-        Uses DATABASE_URL directly if provided, otherwise assembles it
-        from the individual POSTGRES_* fields. The driver is psycopg
-        (postgresql+psycopg) for SQLAlchemy 2.x compatibility.
+        Priority:
+          1. DATABASE_URL env var (set by Render's PostgreSQL add-on).
+             Render provides  postgresql://...  or  postgres://...  — both
+             are rewritten to  postgresql+psycopg://  which is the driver
+             alias required by SQLAlchemy 2.x async with psycopg v3.
+          2. Individual POSTGRES_* fields (local dev / docker-compose).
+
+        The driver prefix MUST be  postgresql+psycopg://  — NOT asyncpg,
+        NOT the bare  postgresql://  alias — because session.py uses
+        create_async_engine with psycopg's async mode.
         """
         if self.DATABASE_URL:
-            return str(self.DATABASE_URL)
+            url = str(self.DATABASE_URL)
+            # Render (and Heroku-compatible providers) hand out URLs with
+            # the legacy  postgres://  or bare  postgresql://  scheme.
+            # SQLAlchemy's async psycopg driver requires  postgresql+psycopg://
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+psycopg://", 1)
+            elif url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+            # If it already has the correct driver prefix, leave it unchanged.
+            return url
 
         return (
             f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"

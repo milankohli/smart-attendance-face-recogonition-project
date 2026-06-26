@@ -183,13 +183,19 @@ def create_app() -> FastAPI:
     )
 
     # ── CORS ─────────────────────────────────────────────────────────────
+    # Hardcoded localhost origins are always included for local development.
+    # BACKEND_CORS_ORIGINS (set via env var on Render) adds the deployed
+    # frontend URL, e.g. https://smart-attendance-face-recogonition.vercel.app
+    allow_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        *[str(o) for o in settings.BACKEND_CORS_ORIGINS],
+    ]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-        ],
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -7,13 +7,13 @@ Orchestrates:
   • FaceDetector       — detect faces in incoming frames
   • EmbeddingGenerator — generate 512-D FaceNet vectors
   • SimilarityService  — compute cosine similarity and classify confidence
-  • EmbeddingRepository — pgvector nearest-neighbour search
+  • EmbeddingRepository — nearest-neighbour search (in-memory NumPy)
   • AttendanceRepository — CRUD + duplicate prevention + analytics queries
 
 Recognition pipeline (mirrors desktop app's RecognitionResult flow):
   1. Detect face in frame             (FaceDetector)
   2. Generate 512-D embedding         (EmbeddingGenerator)
-  3. Nearest-neighbour search         (pgvector via EmbeddingRepository)
+  3. Nearest-neighbour search         (EmbeddingRepository)
   4. Cosine similarity threshold      (SimilarityService)
   5. Mark attendance if above threshold and not already marked today
      (AttendanceRepository)
@@ -247,7 +247,7 @@ class AttendanceService:
         Steps:
           1. Detect face crop
           2. Generate 512-D embedding
-          3. pgvector nearest-neighbour search
+          3. Nearest-neighbour search
           4. Threshold evaluation
           5. Duplicate-attendance check
           6. Derive status from current time
@@ -294,9 +294,6 @@ class AttendanceService:
         eval_result = self._similarity.evaluate(best_match.similarity)
 
         if not eval_result.above_threshold:
-            # Face detected but below recognition threshold — do not create any
-            # attendance record.  The caller (WebSocket broadcast / REST endpoint)
-            # can inform the user that the face was not recognised.
             return RecognitionResult(
                 recognized=False,
                 student=None,
@@ -402,10 +399,6 @@ class AttendanceService:
         """
         Admin manual override for attendance marking.
 
-        Mirrors the POST /attendance/mark endpoint's intent — an admin can
-        backdate records or mark attendance for students who were present
-        but not captured by the camera.
-
         Status is derived automatically from `at_time` using the same
         cutoff rule as the recognition pipeline.  The caller never supplies
         a status value.
@@ -473,23 +466,16 @@ class AttendanceService:
         or a previously-generated Absent) for a student on that date it is
         silently skipped — no duplicate is ever created.
 
-        Intended to be called by an APScheduler job or cron task at the end
-        of each school day, e.g.:
-
-            await svc.generate_absent_records_for_date(date.today())
-            await session.commit()
-
         Args:
             target_date: The date for which to generate absent records.
 
         Returns:
             List of newly created AttendanceRecord rows (excludes skipped).
         """
-        # All registered students — hard-delete is used, so every row in the
-        # students table is a live student.
-        active_students, _ = await self._student_repo.list(
+        # StudentRepository.list() returns (Sequence, total) — unpack correctly.
+        active_students = await self._student_repo.list(
             skip=0,
-            limit=10_000,   # large upper bound; adjust if roster exceeds this
+            limit=10_000,
         )
 
         # End-of-day sentinel time — midnight represents "no scan occurred"
